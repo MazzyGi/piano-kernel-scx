@@ -1,0 +1,81 @@
+name: build-kernel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  kernel:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev libelf-dev dwarves \
+            clang lld llvm python3 git ca-certificates
+
+      - name: Clone pinned kernel source
+        run: |
+          git clone --depth 1 --branch piano/v0.5.1 https://github.com/yzddmr6/linux-sm8750-piano kernel
+          git -C kernel rev-parse HEAD
+
+      - name: Configure kernel with sched_ext and BTF
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64 CROSS_COMPILE= KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          K="$PWD/kernel"; O="$PWD/out"; mkdir -p "$O"
+          make -C "$K" O="$O" defconfig
+          "$K/scripts/kconfig/merge_config.sh" -m -O "$O" "$O/.config" \
+            "$K/arch/arm64/configs/piano-diagnostic.config" \
+            "$K/arch/arm64/configs/piano-desktop-diag.config" \
+            "$K/arch/arm64/configs/piano-persistent.config" \
+            "$K/arch/arm64/configs/piano-release.config"
+          "$K/scripts/config" --file "$O/.config" --set-str LOCALVERSION "-piano28" --disable LOCALVERSION_AUTO
+          cat >> "$O/.config" <<'EOF'
+          CONFIG_SCHED_CLASS_EXT=y
+          CONFIG_DEBUG_INFO_BTF=y
+          CONFIG_BPF_SYSCALL=y
+          CONFIG_BPF_JIT=y
+          CONFIG_BPF_JIT_ALWAYS_ON=y
+          CONFIG_CGROUP_BPF=y
+          CONFIG_BPF_EVENTS=y
+          CONFIG_NET_CLS_BPF=y
+          CONFIG_FTRACE=y
+          EOF
+          make -C "$K" O="$O" olddefconfig
+          grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_LOCALVERSION=' "$O/.config"
+
+      - name: Build Image, DTBs and modules
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64 CROSS_COMPILE= KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          K="$PWD/kernel"; O="$PWD/out"
+          make -C "$K" O="$O" -j"$(nproc)" \
+            Image qcom/sm8750-xiaomi-piano.dtb qcom/sm8750-xiaomi-piano-desktop.dtb modules
+
+      - name: Package artifacts
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          cp out/arch/arm64/boot/Image dist/
+          cp out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
+          cp out/.config dist/config
+          cat out/include/config/kernel.release > dist/kernel-release
+          make -C kernel O=out INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
+          tar czf kernel-artifacts.tar.gz -C dist .
+          du -sh kernel-artifacts.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piano-kernel-sched-ext
+          path: kernel-artifacts.tar.gz
+          compression-level: 0
+          if-no-files-found: error
