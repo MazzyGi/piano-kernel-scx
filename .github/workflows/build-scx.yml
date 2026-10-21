@@ -1,0 +1,31 @@
+name: build-scx-lavd
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scx:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang llvm libclang-dev libbpf-dev libelf-dev zlib1g-dev pkg-config build-essential git
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Clone sched-ext/scx
+        run: git clone --depth 1 https://github.com/sched-ext/scx
+      - name: Build scx_lavd
+        run: |
+          cd scx
+          cargo build --release -p scx_lavd
+          file target/release/scx_lavd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scx-lavd-aarch64
+          path: scx/target/release/scx_lavd
+          if-no-files-found: error
