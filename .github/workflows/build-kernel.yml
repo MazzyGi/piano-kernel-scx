@@ -64,11 +64,11 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-          cp out/arch/arm64/boot/Image dist/
-          cp out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
-          cp out/.config dist/config
-          cat out/include/config/kernel.release > dist/kernel-release
-          make -C kernel O=out INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
+          cp "$PWD/out/arch/arm64/boot/Image" dist/
+          cp "$PWD"/out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
+          cp "$PWD/out/.config" dist/config
+          cat "$PWD/out/include/config/kernel.release" > dist/kernel-release
+          make -C kernel O="$PWD/out" INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
           tar czf kernel-artifacts.tar.gz -C dist .
           du -sh kernel-artifacts.tar.gz
 
