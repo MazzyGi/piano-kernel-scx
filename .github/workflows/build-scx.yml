@@ -15,6 +15,10 @@ on:
         description: "cargo package"
         required: true
         default: scx_lavd
+      pin_metrics:
+        description: "downgrade metrics crate (true/false)"
+        required: true
+        default: "false"
 
 permissions:
   contents: read
@@ -35,7 +39,11 @@ jobs:
       - name: rustfmt
         run: rustup component add rustfmt
       - name: Clone sched-ext/scx (${{ inputs.ref }})
-        run: git clone --depth 1 --branch "${{ inputs.ref }}" https://github.com/sched-ext/scx
+        run: |
+          git clone --depth 1 --branch "${{ inputs.ref }}" https://github.com/sched-ext/scx
+          if [ "${{ inputs.pin_metrics }}" = "true" ]; then
+            cd scx && cargo update -p metrics --precise 0.22.3
+          fi
       - name: Build scx_lavd
         run: |
           cd scx
