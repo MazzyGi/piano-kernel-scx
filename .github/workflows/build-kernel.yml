@@ -35,7 +35,7 @@ jobs:
           # instead of the stock 1.6 A input cap (9 V wall).
           sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
           grep -n "xiaomi_mca_pd_limits\|xiaomi_mca_pps_limits" kernel/drivers/power/supply/xiaomi_mca.c
-          make -C "$K" O="$O" defconfig
+          make -C "$K" O="$O" LOCALVERSION= defconfig
           "$K/scripts/kconfig/merge_config.sh" -m -O "$O" "$O/.config" \
             "$K/arch/arm64/configs/piano-diagnostic.config" \
             "$K/arch/arm64/configs/piano-desktop-diag.config" \
@@ -53,7 +53,7 @@ jobs:
           CONFIG_NET_CLS_BPF=y
           CONFIG_FTRACE=y
           EOF
-          make -C "$K" O="$O" olddefconfig
+          make -C "$K" O="$O" LOCALVERSION= olddefconfig
           grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_LOCALVERSION=' "$O/.config"
 
       - name: Build Image, DTBs and modules
@@ -61,7 +61,7 @@ jobs:
           set -euxo pipefail
           export ARCH=arm64 CROSS_COMPILE= KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
           K="$PWD/kernel"; O="$PWD/out"
-          make -C "$K" O="$O" -j"$(nproc)" \
+          make -C "$K" O="$O" LOCALVERSION= -j"$(nproc)" \
             Image qcom/sm8750-xiaomi-piano.dtb qcom/sm8750-xiaomi-piano-desktop.dtb modules
 
       - name: Package artifacts
@@ -72,7 +72,7 @@ jobs:
           cp "$PWD"/out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
           cp "$PWD/out/.config" dist/config
           cat "$PWD/out/include/config/kernel.release" > dist/kernel-release
-          make -C kernel O="$PWD/out" INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
+          make -C kernel O="$PWD/out" LOCALVERSION= INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
           tar czf kernel-artifacts.tar.gz -C dist .
           du -sh kernel-artifacts.tar.gz
 
