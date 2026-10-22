@@ -146,7 +146,7 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang llvm libelf-dev zlib1g-dev libcap-dev libzstd-dev pkg-config python3 python3-pyelftools make gcc git
+          sudo apt-get install -y --no-install-recommends clang llvm lld libelf-dev zlib1g-dev libcap-dev libzstd-dev pkg-config python3 python3-pyelftools make gcc git
       - name: Clone pinned kernel source
         run: |
           git init kernel
