@@ -7,6 +7,10 @@ on:
         description: "base | sched_ext | btf_only | full"
         required: true
         default: base
+      toolchain:
+        description: "gcc | clang"
+        required: true
+        default: gcc
 
 permissions:
   contents: read
@@ -45,7 +49,8 @@ jobs:
       - name: Configure kernel (${{ inputs.variant }})
         run: |
           set -euxo pipefail
-          export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          export ARCH=arm64 KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          if [ "${{ inputs.toolchain }}" = "clang" ]; then export LLVM=1; else export CROSS_COMPILE=aarch64-linux-gnu-; fi
           K="$PWD/kernel"; O="$PWD/out"; mkdir -p "$O"
           cp ci/release.config "$O/.config"
           sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
@@ -84,8 +89,13 @@ jobs:
       - name: Build Image, DTBs and modules
         run: |
           set -euxo pipefail
-          export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          export ARCH=arm64 KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
           export PAHOLE="$PWD/dwarves/build/pahole"
+          if [ "${{ inputs.toolchain }}" = "clang" ]; then
+            export LLVM=1
+          else
+            export CROSS_COMPILE=aarch64-linux-gnu-
+          fi
           K="$PWD/kernel"; O="$PWD/out"
           make -C "$K" O="$O" LOCALVERSION= -j"$(nproc)" \
             Image qcom/sm8750-xiaomi-piano.dtb qcom/sm8750-xiaomi-piano-desktop.dtb modules
@@ -114,7 +124,8 @@ jobs:
           cp "$PWD"/out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
           cp "$PWD/out/.config" dist/config
           cat "$PWD/out/include/config/kernel.release" > dist/kernel-release
-          export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+          export ARCH=arm64
+          if [ "${{ inputs.toolchain }}" = "clang" ]; then export LLVM=1; else export CROSS_COMPILE=aarch64-linux-gnu-; fi
           make -C kernel O="$PWD/out" LOCALVERSION= INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
           tar czf kernel-artifacts.tar.gz -C dist .
 
