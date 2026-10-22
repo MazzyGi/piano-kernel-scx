@@ -61,6 +61,10 @@ jobs:
           CONFIG_CGROUP_BPF=y
           CONFIG_BPF_EVENTS=y
           CONFIG_FTRACE=y
+          CONFIG_FUNCTION_TRACER=y
+          CONFIG_FUNCTION_GRAPH_TRACER=y
+          CONFIG_FTRACE_SYSCALLS=y
+          CONFIG_DYNAMIC_FTRACE=y
           EOF
               ;;
             *) echo "unknown variant"; exit 1 ;;
