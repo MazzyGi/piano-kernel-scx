@@ -44,7 +44,17 @@ static void sig_handler(int sig)
 
 static int set_cfg(struct scx_piano *skel, __u32 idx, __u64 val)
 {
-	return bpf_map_update_elem(bpf_map__fd(skel->maps.cfg), &idx, &val, 0);
+	int ret;
+
+	if (!skel->maps.cfg) {
+		errno = ENOENT;
+		return -1;
+	}
+	ret = bpf_map__update_elem(skel->maps.cfg, &idx, sizeof(idx),
+				   &val, sizeof(val), 0);
+	if (ret)
+		perror("cfg update");
+	return ret;
 }
 
 static int read_mode_file(void)
