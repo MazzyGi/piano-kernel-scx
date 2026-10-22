@@ -43,6 +43,8 @@ jobs:
             "$K/arch/arm64/configs/piano-release.config"
           "$K/scripts/config" --file "$O/.config" --set-str LOCALVERSION "-piano28" --disable LOCALVERSION_AUTO
           cat >> "$O/.config" <<'EOF'
+          CONFIG_DEBUG_INFO=y
+          CONFIG_DEBUG_INFO_DWARF5=y
           CONFIG_SCHED_CLASS_EXT=y
           CONFIG_DEBUG_INFO_BTF=y
           CONFIG_BPF_SYSCALL=y
@@ -54,7 +56,7 @@ jobs:
           CONFIG_FTRACE=y
           EOF
           make -C "$K" O="$O" LOCALVERSION= olddefconfig
-          grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_LOCALVERSION=' "$O/.config"
+          grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_DEBUG_INFO=|CONFIG_LOCALVERSION=' "$O/.config"
 
       - name: Build Image, DTBs and modules
         run: |
