@@ -2,6 +2,11 @@ name: build-scx-lavd
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "sched-ext/scx tag or branch"
+        required: true
+        default: v1.0.20
 
 permissions:
   contents: read
@@ -17,8 +22,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang llvm libclang-dev libbpf-dev libelf-dev zlib1g-dev pkg-config build-essential git
       - uses: dtolnay/rust-toolchain@stable
-      - name: Clone sched-ext/scx
-        run: git clone --depth 1 https://github.com/sched-ext/scx
+      - name: Clone sched-ext/scx (${{ inputs.ref }})
+        run: git clone --depth 1 --branch "${{ inputs.ref }}" https://github.com/sched-ext/scx
       - name: Build scx_lavd
         run: |
           cd scx
@@ -26,6 +31,6 @@ jobs:
           file target/release/scx_lavd
       - uses: actions/upload-artifact@v4
         with:
-          name: scx-lavd-aarch64
+          name: scx-lavd-${{ inputs.ref }}
           path: scx/target/release/scx_lavd
           if-no-files-found: error
