@@ -2,6 +2,11 @@ name: build-kernel
 
 on:
   workflow_dispatch:
+    inputs:
+      variant:
+        description: "base | sched_ext | full"
+        required: true
+        default: base
 
 permissions:
   contents: read
@@ -23,40 +28,35 @@ jobs:
       - name: Clone pinned kernel source
         run: |
           git clone --depth 1 --branch piano/dev https://github.com/yzddmr6/linux-sm8750-piano kernel
-          git -C kernel rev-parse HEAD
           test "$(git -C kernel rev-parse HEAD)" = 5ed69822d95a564e9743c27c446107363ec6abd1
 
-      - name: Configure kernel with sched_ext and BTF
+      - name: Configure kernel (${{ inputs.variant }})
         run: |
           set -euxo pipefail
           export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
           K="$PWD/kernel"; O="$PWD/out"; mkdir -p "$O"
-          # Piano: allow the PD/PPS paths to ask their full advertised current
-          # instead of the stock 1.6 A input cap (9 V wall).
+          cp ci/release.config "$O/.config"
           sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
-          grep -n "xiaomi_mca_pd_limits\|xiaomi_mca_pps_limits" kernel/drivers/power/supply/xiaomi_mca.c
-          make -C "$K" O="$O" LOCALVERSION= defconfig
-          "$K/scripts/kconfig/merge_config.sh" -m -O "$O" "$O/.config" \
-            "$K/arch/arm64/configs/piano-diagnostic.config" \
-            "$K/arch/arm64/configs/piano-desktop-diag.config" \
-            "$K/arch/arm64/configs/piano-persistent.config" \
-            "$K/arch/arm64/configs/piano-release.config"
-          "$K/scripts/config" --file "$O/.config" --set-str LOCALVERSION "-piano28" --disable LOCALVERSION_AUTO --disable RUST
-          cat >> "$O/.config" <<'EOF'
+          case "${{ inputs.variant }}" in
+            base) ;;
+            sched_ext) "$K/scripts/config" --file "$O/.config" -e SCHED_CLASS_EXT -e BPF_SYSCALL ;;
+            full)
+              cat >> "$O/.config" <<'EOF'
           CONFIG_DEBUG_INFO=y
           CONFIG_DEBUG_INFO_DWARF5=y
           CONFIG_SCHED_CLASS_EXT=y
           CONFIG_DEBUG_INFO_BTF=y
           CONFIG_BPF_SYSCALL=y
           CONFIG_BPF_JIT=y
-          CONFIG_BPF_JIT_ALWAYS_ON=y
           CONFIG_CGROUP_BPF=y
           CONFIG_BPF_EVENTS=y
-          CONFIG_NET_CLS_BPF=y
           CONFIG_FTRACE=y
           EOF
+              ;;
+            *) echo "unknown variant"; exit 1 ;;
+          esac
           make -C "$K" O="$O" LOCALVERSION= olddefconfig
-          grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_DEBUG_INFO=|CONFIG_LOCALVERSION=' "$O/.config"
+          grep -E 'CONFIG_SCHED_CLASS_EXT|CONFIG_DEBUG_INFO_BTF|CONFIG_DEBUG_INFO_NONE|CONFIG_LOCALVERSION=' "$O/.config" || true
 
       - name: Build Image, DTBs and modules
         run: |
@@ -74,10 +74,11 @@ jobs:
           cp out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb image/
           cp out/.config image/config
           cat out/include/config/kernel.release > image/kernel-release
+          ls -l image/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: piano-image
+          name: piano-image-${{ inputs.variant }}
           path: image
           if-no-files-found: error
 
@@ -92,11 +93,10 @@ jobs:
           export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
           make -C kernel O="$PWD/out" LOCALVERSION= INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
           tar czf kernel-artifacts.tar.gz -C dist .
-          du -sh kernel-artifacts.tar.gz
 
       - uses: actions/upload-artifact@v4
         with:
-          name: piano-kernel-sched-ext
+          name: piano-kernel-${{ inputs.variant }}
           path: kernel-artifacts.tar.gz
           compression-level: 0
           if-no-files-found: error
