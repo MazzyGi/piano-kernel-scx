@@ -25,6 +25,15 @@ jobs:
             build-essential gcc-aarch64-linux-gnu bc bison flex libssl-dev libelf-dev dwarves \
             clang lld llvm python3 git ca-certificates
 
+      - name: Build pahole 1.29
+        run: |
+          set -euxo pipefail
+          sudo apt-get install -y --no-install-recommends cmake libdw-dev
+          git clone --depth 1 --branch v1.29 https://github.com/acmel/dwarves.git
+          cmake -S dwarves -B dwarves/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+          cmake --build dwarves/build -j"$(nproc)"
+          dwarves/build/pahole --version
+
       - name: Clone pinned kernel source
         run: |
           git init kernel
@@ -76,6 +85,7 @@ jobs:
         run: |
           set -euxo pipefail
           export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
+          export PAHOLE="$PWD/dwarves/build/pahole"
           K="$PWD/kernel"; O="$PWD/out"
           make -C "$K" O="$O" LOCALVERSION= -j"$(nproc)" \
             Image qcom/sm8750-xiaomi-piano.dtb qcom/sm8750-xiaomi-piano-desktop.dtb modules
