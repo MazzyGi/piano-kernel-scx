@@ -28,6 +28,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ inputs.rust }}
+      - name: rustfmt
+        run: rustup component add rustfmt
       - name: Clone sched-ext/scx (${{ inputs.ref }})
         run: git clone --depth 1 --branch "${{ inputs.ref }}" https://github.com/sched-ext/scx
       - name: Build scx_lavd
