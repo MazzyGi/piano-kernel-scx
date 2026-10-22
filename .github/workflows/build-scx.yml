@@ -11,6 +11,10 @@ on:
         description: "Rust toolchain version"
         required: true
         default: stable
+      package:
+        description: "cargo package"
+        required: true
+        default: scx_lavd
 
 permissions:
   contents: read
@@ -35,10 +39,10 @@ jobs:
       - name: Build scx_lavd
         run: |
           cd scx
-          cargo build --release -p scx_lavd
+          cargo build --release -p ${{ inputs.package }}
           file target/release/scx_lavd
       - uses: actions/upload-artifact@v4
         with:
-          name: scx-lavd-${{ inputs.ref }}
-          path: scx/target/release/scx_lavd
+          name: ${{ inputs.package }}-${{ inputs.ref }}
+          path: scx/target/release/${{ inputs.package }}
           if-no-files-found: error
