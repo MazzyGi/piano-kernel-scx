@@ -66,6 +66,21 @@ jobs:
           make -C "$K" O="$O" LOCALVERSION= -j"$(nproc)" \
             Image qcom/sm8750-xiaomi-piano.dtb qcom/sm8750-xiaomi-piano-desktop.dtb modules
 
+      - name: Collect image
+        run: |
+          set -euxo pipefail
+          mkdir -p image
+          cp out/arch/arm64/boot/Image image/
+          cp out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb image/
+          cp out/.config image/config
+          cat out/include/config/kernel.release > image/kernel-release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piano-image
+          path: image
+          if-no-files-found: error
+
       - name: Package artifacts
         run: |
           set -euxo pipefail
@@ -74,6 +89,7 @@ jobs:
           cp "$PWD"/out/arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano*.dtb dist/
           cp "$PWD/out/.config" dist/config
           cat "$PWD/out/include/config/kernel.release" > dist/kernel-release
+          export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
           make -C kernel O="$PWD/out" LOCALVERSION= INSTALL_MOD_PATH="$PWD/dist/modules" INSTALL_MOD_STRIP=1 modules_install
           tar czf kernel-artifacts.tar.gz -C dist .
           du -sh kernel-artifacts.tar.gz
