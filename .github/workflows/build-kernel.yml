@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: "base | sched_ext | full"
+        description: "base | sched_ext | btf_only | full"
         required: true
         default: base
 
@@ -42,7 +42,14 @@ jobs:
           sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
           case "${{ inputs.variant }}" in
             base) ;;
-            sched_ext) "$K/scripts/config" --file "$O/.config" -e SCHED_CLASS_EXT -e BPF_SYSCALL ;;
+            sched_ext) "$K/scripts/config" --file "$O/.config" -e SCHED_CLASS_EXT -e BPF_JIT_ALWAYS_ON ;;
+            btf_only)
+              cat >> "$O/.config" <<'EOF'
+          CONFIG_DEBUG_INFO=y
+          CONFIG_DEBUG_INFO_DWARF5=y
+          CONFIG_DEBUG_INFO_BTF=y
+          EOF
+              ;;
             full)
               cat >> "$O/.config" <<'EOF'
           CONFIG_DEBUG_INFO=y
