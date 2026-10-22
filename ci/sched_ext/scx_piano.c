@@ -138,11 +138,11 @@ restart:
 	if (!skel)
 		return 1;
 
+	SCX_OPS_LOAD(skel, piano_ops, scx_piano, uei);
 	if (set_cfg(skel, CFG_MODE, mode) || set_cfg(skel, CFG_BOOST, BOOST_NS)) {
 		fprintf(stderr, "failed to initialize cfg map\n");
 		return 1;
 	}
-	SCX_OPS_LOAD(skel, piano_ops, scx_piano, uei);
 	link = SCX_OPS_ATTACH(skel, piano_ops, scx_piano);
 	cur = mode;
 
