@@ -31,6 +31,10 @@ jobs:
           set -euxo pipefail
           export ARCH=arm64 CROSS_COMPILE= KBUILD_BUILD_USER=piano KBUILD_BUILD_HOST=builder
           K="$PWD/kernel"; O="$PWD/out"; mkdir -p "$O"
+          # Piano: allow the PD/PPS paths to ask their full advertised current
+          # instead of the stock 1.6 A input cap (9 V wall).
+          sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
+          grep -n "xiaomi_mca_pd_limits\|xiaomi_mca_pps_limits" kernel/drivers/power/supply/xiaomi_mca.c
           make -C "$K" O="$O" defconfig
           "$K/scripts/kconfig/merge_config.sh" -m -O "$O" "$O/.config" \
             "$K/arch/arm64/configs/piano-diagnostic.config" \
