@@ -1,0 +1,36 @@
+name: build-sched-ext-tools
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang llvm libelf-dev zlib1g-dev libcap-dev libzstd-dev pkg-config python3 python3-pyelftools make gcc git
+      - name: Clone pinned kernel source
+        run: |
+          git init kernel
+          git -C kernel remote add origin https://github.com/yzddmr6/linux-sm8750-piano
+          git -C kernel fetch --depth 1 origin 5ed69822d95a564e9743c27c446107363ec6abd1
+          git -C kernel checkout --detach FETCH_HEAD
+      - name: Build tools/sched_ext
+        run: |
+          set -euxo pipefail
+          VMLINUX_BTF="$PWD/ci/vmlinux.btf" make -C kernel/tools/sched_ext ARCH=arm64 LLVM=1 -j"$(nproc)"
+          ls -l kernel/tools/sched_ext/build/bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sched-ext-tools
+          path: |
+            kernel/tools/sched_ext/build/bin/*
+            kernel/tools/sched_ext/build/sched_ext/*.bpf.o
+          if-no-files-found: error
