@@ -42,16 +42,22 @@ static void sig_handler(int sig)
 	exit_req = 1;
 }
 
+static struct bpf_map *cfg_map(struct scx_piano *skel)
+{
+	return bpf_object__find_map_by_name(skel->obj, "cfg");
+}
+
 static int set_cfg(struct scx_piano *skel, __u32 idx, __u64 val)
 {
+	struct bpf_map *m = cfg_map(skel);
 	int ret;
 
-	if (!skel->maps.cfg) {
+	if (!m) {
 		errno = ENOENT;
+		perror("cfg map");
 		return -1;
 	}
-	ret = bpf_map__update_elem(skel->maps.cfg, &idx, sizeof(idx),
-				   &val, sizeof(val), 0);
+	ret = bpf_map__update_elem(m, &idx, sizeof(idx), &val, sizeof(val), 0);
 	if (ret)
 		perror("cfg update");
 	return ret;
@@ -149,8 +155,11 @@ restart:
 		if (m >= 0 && m != cur) {
 			__u64 v = m;
 
-			if (bpf_map_update_elem(bpf_map__fd(skel->maps.cfg),
-						&( __u32){CFG_MODE}, &v, 0) == 0) {
+			__u32 key = CFG_MODE;
+			struct bpf_map *m = cfg_map(skel);
+
+			if (m && bpf_map__update_elem(m, &key, sizeof(key),
+						      &v, sizeof(v), 0) == 0) {
 				cur = m;
 				if (!quiet)
 					fprintf(stderr, "piano: mode=%d\n", m);
