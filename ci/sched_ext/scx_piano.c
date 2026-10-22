@@ -156,10 +156,10 @@ restart:
 			__u64 v = m;
 
 			__u32 key = CFG_MODE;
-			struct bpf_map *m = cfg_map(skel);
+			struct bpf_map *cm = cfg_map(skel);
 
-			if (m && bpf_map__update_elem(m, &key, sizeof(key),
-						      &v, sizeof(v), 0) == 0) {
+			if (cm && bpf_map__update_elem(cm, &key, sizeof(key),
+						       &v, sizeof(v), 0) == 0) {
 				cur = m;
 				if (!quiet)
 					fprintf(stderr, "piano: mode=%d\n", m);
