@@ -7,6 +7,10 @@ on:
         description: "sched-ext/scx tag or branch"
         required: true
         default: v1.0.20
+      rust:
+        description: "Rust toolchain version"
+        required: true
+        default: stable
 
 permissions:
   contents: read
@@ -21,7 +25,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang llvm libclang-dev libbpf-dev libelf-dev zlib1g-dev pkg-config build-essential git
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust }}
       - name: Clone sched-ext/scx (${{ inputs.ref }})
         run: git clone --depth 1 --branch "${{ inputs.ref }}" https://github.com/sched-ext/scx
       - name: Build scx_lavd
