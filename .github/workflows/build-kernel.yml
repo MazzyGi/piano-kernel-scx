@@ -156,7 +156,9 @@ jobs:
       - name: Build tools/sched_ext
         run: |
           set -euxo pipefail
-          VMLINUX_BTF="$PWD/ci/vmlinux.btf" make -C kernel/tools/sched_ext ARCH=arm64 LLVM=1 -j"$(nproc)"
+          cp ci/sched_ext/scx_piano.bpf.c ci/sched_ext/scx_piano.c kernel/tools/sched_ext/
+          sed -i 's/^c-sched-targets = .*/& scx_piano/' kernel/tools/sched_ext/Makefile
+          VMLINUX_BTF="$PWD/ci/vmlinux.btf" make -C kernel/tools/sched_ext ARCH=arm64 LLVM=1 -j"$(nproc)" scx_piano
           ls -l kernel/tools/sched_ext/build/bin
       - uses: actions/upload-artifact@v4
         with:
