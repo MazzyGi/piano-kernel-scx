@@ -1,0 +1,46 @@
+name: grab-boot21
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "build-kernel run id"
+        required: true
+        default: "39951414789"
+permissions:
+  actions: read
+  contents: write
+jobs:
+  grab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-kernel-full
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: art
+      - name: Extract Image and the two charging modules
+        run: |
+          set -euxo pipefail
+          tar xzf art/kernel-artifacts.tar.gz -C art
+          REL=$(cat art/kernel-release)
+          echo "REL=$REL" >> "$GITHUB_ENV"
+          mkdir -p out/modules
+          cp art/Image out/Image
+          cp art/kernel-release out/kernel-release
+          for m in xiaomi_mca.ko sc8541_charger.ko; do
+            f=$(find art/modules -name "$m" | head -1)
+            install -D "$f" "out/modules/${f#art/modules/lib/modules/$REL/}"
+          done
+          tar czf out/modules-only.tar.gz -C out/modules .
+          ls -lR out
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          gh release delete boot21 --yes --cleanup-tag 2>/dev/null || true
+          gh release create boot21 out/Image out/kernel-release out/modules-only.tar.gz \
+            --repo "$GITHUB_REPOSITORY" --title "boot21 charging test" --notes "Image and charging modules for the 67W patch"
