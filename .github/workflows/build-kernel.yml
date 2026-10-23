@@ -47,6 +47,36 @@ jobs:
           git -C kernel checkout --detach FETCH_HEAD
           git -C kernel rev-parse HEAD
 
+      - name: Apply 67W direct-charging patch
+        run: |
+          set -euxo pipefail
+          M=kernel/drivers/power/supply/xiaomi_mca.c
+          S=kernel/drivers/power/supply/sc8541_charger.c
+          # Buck path: the ADSP accepts 2500 mA at 9 V; stock PPS charge is 3500 mA.
+          sed -i 's/{ 1600, 3000 }/{ 2500, 3500 }/; s/{ 2500, 3000 }/{ 2500, 3500 }/' "$M"
+          # Direct charging limits from the stock quick-charge tables
+          # (ffc_volt_para18_35: 12.4 A at 4144 mV, 10.65 A from 4300 mV).
+          perl -pi -e 's/^(#define MCA_CP_IBAT_MAX_MA\s+)8000/${1}12400/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_IBUS_MAX_MA\s+)5000/${1}6100/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_PPS_MAX_MA\s+)6000/${1}6100/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_BUSOCP_MAX_MA\s+)6000/${1}7000/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_VBAT_START_MV\s+)4100/${1}4450/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_VBAT_MAX_MV\s+)4200/${1}4500/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_VSTEP_MV\s+)4150/${1}4300/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_VSTEP_MA\s+)7230/${1}10650/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_TBAT_WARM\s+)40/${1}43/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_TBAT_EXIT\s+)45/${1}46/' "$M"
+          perl -pi -e 's/^(#define MCA_CP_IBAT_REDUCED_MA\s+)4500/${1}6000/' "$M"
+          perl -pi -e 's/static unsigned int cp_ibus_max = 4000;/static unsigned int cp_ibus_max = 6100;/' "$M"
+          # Charge-pump protections from the stock DT: 4600 mV battery,
+          # 7 A bus OCP, 13 V bus OVP.
+          perl -pi -e 's/^(#define SC8541_BATOVP_MV\s+)4300/${1}4600/' "$S"
+          perl -pi -e 's/^(#define SC8541_BATOVP_ALM_MV\s+)4250/${1}4500/' "$S"
+          perl -pi -e 's/^(#define SC8541_BUSOVP_MV\s+)11000/${1}13000/' "$S"
+          perl -pi -e 's/^(#define SC8541_BUSOVP_ALM_MV\s+)10500/${1}12500/' "$S"
+          perl -pi -e 's/^(#define SC8541_BUSOCP_MA\s+)3500/${1}7000/' "$S"
+          grep -nE 'MCA_CP_(IBAT_MAX|IBUS_MAX|PPS_MAX|VBAT_START|VSTEP|TBAT_WARM)|cp_ibus_max =|SC8541_(BATOVP_MV|BUSOVP_MV|BUSOCP_MA)|\{ 2500, 3500 \}' "$M" "$S"
+
       - name: Configure kernel (${{ inputs.variant }})
         run: |
           set -euxo pipefail
@@ -54,7 +84,6 @@ jobs:
           if [ "${{ inputs.toolchain }}" = "clang" ]; then export LLVM=1; else export CROSS_COMPILE=aarch64-linux-gnu-; fi
           K="$PWD/kernel"; O="$PWD/out"; mkdir -p "$O"
           cp ci/release.config "$O/.config"
-          sed -i 's/{ 1600, 3000 }/{ 3000, 3000 }/; s/{ 2500, 3000 }/{ 3000, 3000 }/' kernel/drivers/power/supply/xiaomi_mca.c
           case "${{ inputs.variant }}" in
             base) ;;
             sched_ext) "$K/scripts/config" --file "$O/.config" -e SCHED_CLASS_EXT -e BPF_JIT_ALWAYS_ON ;;
