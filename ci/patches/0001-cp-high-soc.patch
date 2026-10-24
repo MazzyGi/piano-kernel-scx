@@ -1,0 +1,47 @@
+--- a/drivers/power/supply/xiaomi_mca.c
++++ b/drivers/power/supply/xiaomi_mca.c
+@@ -326,11 +326,15 @@
+  */
+ #define MCA_CP_POLL_MS		500
+ #define MCA_CP_VBAT_MIN_MV	3500
+-#define MCA_CP_VBAT_START_MV	4100	/* only starts below this */
+-#define MCA_CP_VBAT_MAX_MV	4200
+-/* stock normal_volt_para18_35: 8 A, 7.23 A from 4150 mV */
+-#define MCA_CP_VSTEP_MV		4150
+-#define MCA_CP_VSTEP_MA		7230
++#define MCA_CP_VBAT_START_MV	4500	/* start up to ~95% SoC, as stock FFC */
++#define MCA_CP_VBAT_MAX_MV	4500
++/* stock ffc_volt_para18_35: 12.4 A below 4.3 V, then 10.65/9.04/7.23 A */
++#define MCA_CP_VSTEP_MV		4300
++#define MCA_CP_VSTEP_MA		10650
++#define MCA_CP_VSTEP2_MV	4475
++#define MCA_CP_VSTEP2_MA	9040
++#define MCA_CP_VSTEP3_MV	4540
++#define MCA_CP_VSTEP3_MA	7230
+ /*
+  * Battery temperature, degC, of the coolest and the warmest of the two
+  * cells and the pack: stock batt_para_lwn allows 7.23 A from 13, 8 A from
+@@ -1672,7 +1676,11 @@
+ 	ma = min(ma, mca->cp_warm_ma);
+ 	if (tcool < MCA_CP_TBAT_FULL)
+ 		ma = min_t(u32, ma, MCA_CP_IBAT_REDUCED_MA);
+-	if (vbat >= MCA_CP_VSTEP_MV)
++	if (vbat >= MCA_CP_VSTEP3_MV)
++		ma = min_t(u32, ma, MCA_CP_VSTEP3_MA);
++	else if (vbat >= MCA_CP_VSTEP2_MV)
++		ma = min_t(u32, ma, MCA_CP_VSTEP2_MA);
++	else if (vbat >= MCA_CP_VSTEP_MV)
+ 		ma = min_t(u32, ma, MCA_CP_VSTEP_MA);
+ 
+ 	return ma;
+--- a/drivers/power/supply/sc8541_charger.c
++++ b/drivers/power/supply/sc8541_charger.c
+@@ -229,6 +229,8 @@
+ 	ret = ret ?: sc8541_write_check(sc, SC8541_BUSOCP, 0x9f,
+ 				(sc->busocp_ma - SC8541_BUSOCP_OFFSET_MA) /
+ 				SC8541_BUSOCP_STEP_MA);
++	/* Stock battery OCP: 12.7 A (0x7f), enabled; the reset value is 8 A/off. */
++	ret = ret ?: sc8541_write_check(sc, SC8541_BATOCP, 0x7f, 0x7f);
+ 	/* 2:1, not bypass */
+ 	ret = ret ?: sc8541_write_check(sc, SC8541_CTRL2, SC8541_EN_BYPASS, 0);
+ 	/* all channels, continuous conversion */
