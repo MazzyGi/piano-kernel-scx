@@ -50,6 +50,7 @@ jobs:
       - name: Apply 67W direct-charging patch
         run: |
           set -euxo pipefail
+          git -C kernel apply "$PWD/ci/patches/0001-cp-high-soc.patch"
           M=kernel/drivers/power/supply/xiaomi_mca.c
           S=kernel/drivers/power/supply/sc8541_charger.c
           # Buck path: the ADSP accepts 2500 mA at 9 V; stock PPS charge is 3500 mA.
